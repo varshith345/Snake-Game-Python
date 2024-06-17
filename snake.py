@@ -1,360 +1,182 @@
 import pygame
-import sys
-import os
-import random 
-import math
+from pygame.locals import *
+import time
+import random
 
-pygame.init()
-pygame.display.set_caption("Snake Game")
-pygame.font.init()
-random.seed()
-
-
-# we will declare global constant definitions
-
-SPEED = 0.36
-SNAKE_SIZE = 9
-APPLE_SIZE = SNAKE_SIZE     # we will keep both food and size of snake same
-SEPARATION = 10    # separation between two pixels
-SCREEN_HEIGHT = 600
-SCREEN_WIDTH = 800
-FPS = 25
-KEY = {"UP":1 , "DOWN":2 , "LEFT":3, "RIGHT":4}
-
-
-# we will initialise screen
-screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT),pygame.HWSURFACE)
-# we have used hw surface which stands for hardware surface refers to using memory on the video card for storing
-# draws as opposed to main memory
-
-# Resources
-score_font = pygame.font.Font(None,38)
-score_numb_font = pygame.font.Font(None,28)
-game_over_font = pygame.font.Font(None,46)
-play_again_font = score_numb_font
-score_msg = score_font.render("Score : ",1,pygame.Color("green"))
-score_msg_size = score_font.size("Score")
-background_color = pygame.Color(0,0,0)    # we will fill background color as black
-black = pygame.Color(0,0,0)
-
-
-# for clock at the left corner
-gameClock = pygame.time.Clock()
-
-def checkCollision(posA,As ,posB , Bs):    # As is the size of a and Bs is the size of b
-    if(posA.x < posB.x+Bs and posA.x+As > posB.x and posA.y < posB.y+Bs and posA.y+As > posB.y):
-        return True
-    return False
-
-# to check the boundaries  here we are not limiting boundaries like it can pass through screen and come from other side
-
-def checkLimits(snake):
-    if(snake.x > SCREEN_WIDTH):
-        snake.x = SNAKE_SIZE
-    if(snake.x < 0):    # this will be checked when some part of snake is on other side and some on opposite side
-        snake.x = SCREEN_WIDTH - SNAKE_SIZE
-    if(snake.y > SCREEN_HEIGHT):
-        snake.y = SNAKE_SIZE
-    if(snake.y < 0):   # this also same half half
-        snake.y = SCREEN_HEIGHT - SNAKE_SIZE
-
-# we will make class for food of the snake let's name it as apple
+SIZE=40
+BACKGROUND_COLOR=(110,110,5)
 
 class Apple:
-    def __init__(self, x ,y,state):
-        self.x = x
-        self.y = y
-        self.state = state
-        self.color = pygame.color.Color("orange")     # color of food
-
-    def draw(self,screen):
-        pygame.draw.rect(screen,self.color,(self.x,self.y,APPLE_SIZE,APPLE_SIZE),0)
-
-class segment:
-    # initially snake will move in up direction
-    def __init__(self,x,y):
-        self.x = x
-        self.y = y
-        self.direction = KEY["UP"]
-        self.color = "white"
-
-class snake:
-    def __init__(self,x,y):
-        self.x = x
-        self.y = y
-        self.direction = KEY["UP"]
-        self.stack =[]   # initially it will be empty
-        self.stack.append(self)
-        blackBox = segment(self.x , self.y + SEPARATION)
-        blackBox.direction = KEY["UP"]
-        blackBox.color = "NULL"
-        self.stack.append(blackBox)
-
-# we will define moves of the snake
-
-    def move(self):
-        last_element = len(self.stack)-1
-        while(last_element != 0):
-            self.stack[last_element].direction = self.stack[last_element-1].direction
-            self.stack[last_element].x = self.stack[last_element-1].x 
-            self.stack[last_element].y = self.stack[last_element-1].y 
-            last_element-=1
-        if(len(self.stack)<2):
-            last_segment = self
-        else:
-            last_segment = self.stack.pop(last_element)
-        last_segment.direction = self.stack[0].direction
-        if(self.stack[0].direction ==KEY["UP"]):
-            last_segment.y = self.stack[0].y - (SPEED * FPS)
-        elif(self.stack[0].direction == KEY["DOWN"]):
-            last_segment.y = self.stack[0].y + (SPEED * FPS) 
-        elif(self.stack[0].direction ==KEY["LEFT"]):
-            last_segment.x = self.stack[0].x - (SPEED * FPS)
-        elif(self.stack[0].direction == KEY["RIGHT"]):
-            last_segment.x = self.stack[0].x + (SPEED * FPS)
-        self.stack.insert(0,last_segment)
-
-    def getHead(self):    # head of the snake 
-        return(self.stack[0])   # It will be always 0 index
-
-    # now when snake its food it will grow so for that we will add that food to stack
-
-    def grow(self):
-        last_element = len(self.stack) -1
-        self.stack[last_element].direction = self.stack[last_element].direction
-        if(self.stack[last_element].direction == KEY["UP"]):
-            newSegment = segment(self.stack[last_element].x, self.stack[last_element].y -SNAKE_SIZE)
-            blackBox = segment(newSegment.x , newSegment.y-SEPARATION)
+    def __init__(self,parent_screen):
+        self.parent_screen=parent_screen
+        self.image=pygame.image.load("apple.jpg").convert()
+        self.x=120
+        self.y=120
         
-        elif(self.stack[last_element].direction == KEY["DOWN"]):
-            newSegment = segment(self.stack[last_element].x, self.stack[last_element].y +SNAKE_SIZE)
-            blackBox = segment(newSegment.x , newSegment.y+SEPARATION)
-
-        elif(self.stack[last_element].direction == KEY["LEFT"]):
-            newSegment = segment(self.stack[last_element].x - SNAKE_SIZE, self.stack[last_element].y)
-            blackBox = segment(newSegment.x - SEPARATION , newSegment.y)
-        
-        elif(self.stack[last_element].direction == KEY["RIGHT"]):
-            newSegment = segment(self.stack[last_element].x + SNAKE_SIZE, self.stack[last_element].y)
-            blackBox = segment(newSegment.x + SEPARATION , newSegment.y)
-
-        blackBox.color = "NULL"
-        self.stack.append(newSegment)
-        self.stack.append(blackBox)
-
-    def iterateSegments(self,delta):
-        pass
-
-    def setDirection(self,direction):
-        if(self.direction == KEY["RIGHT"] and direction == KEY["LEFT"] or self.direction == KEY["LEFT"] and 
-                direction == KEY["RIGHT"]):
-            pass
-        elif(self.direction == KEY["UP"] and direction == KEY["DOWN"] or self.direction == KEY["UP"] and 
-                direction == KEY["DOWN"]):
-            pass
-        else:
-            self.direction = direction
-
-    def get_rect(self):     # get the rectangle shape 
-        rect = (self.x , self.y)
-        return rect
-
-    def getX(self):
-        return self.x
-
-    def getY(self):
-        return self.y
-
-    def setX(self,x):
-        self.x = x
-    
-    def setY(self,y):
-        self.y = y
-
-    # we will make the function of crashing when snake eats itself
-
-    def checkCrashing(self):
-        counter = 1
-        while(counter < len(self.stack)-1):
-            if(checkCollision(self.stack[0], SNAKE_SIZE , self.stack[counter], SNAKE_SIZE) and 
-                        self.stack[counter].color != "NULL"):
-                return True
-            counter +=1
-        return False
-
-    # we will draw the snake 
-    def draw(self,screen):
-        pygame.draw.rect(screen,pygame.color.Color("green"), (self.stack[0].x , self.stack[0].y, 
-                SNAKE_SIZE, SNAKE_SIZE),0)
-        counter = 1
-        while(counter < len(self.stack)):
-            if(self.stack[counter].color == "NULL"):
-                counter +=1
-                continue
-            pygame.draw.rect(screen , pygame.color.Color("yellow"), (self.stack[counter].x,
-                self.stack[counter].y, SNAKE_SIZE , SNAKE_SIZE),0)
-            counter +=1
-
-
-# we will define keys
-
-def getKey():
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:
-                return KEY["UP"]
-            elif event.key == pygame.K_DOWN:
-                return KEY["DOWN"]
-            elif event.key == pygame.K_LEFT:
-                return KEY["LEFT"]
-            elif event.key == pygame.K_RIGHT:
-                return KEY["RIGHT"]
-            # for exit 
-            elif event.key == pygame.K_ESCAPE:
-                return "exit"
-            # if we want to continue playing again
-            elif event.key == pygame.K_y:
-                return "yes"
-            # if we don't want to play game
-            elif event.key == pygame.K_n:
-                return "no"
-        if event.type == pygame.QUIT:
-            sys.exit(0)
-
-def endGame():
-    message = game_over_font.render("Gsme Over",1,pygame.Color("white"))
-    message_play_again = play_again_font.render("Play Again ? (Y/N)",1,pygame.Color("green"))
-    screen.blit(message,(320,240))
-    screen.blit(message_play_again,(320+12,240+40))
-
-    pygame.display.flip()
-    pygame.display.update()
-
-    mKey = getKey()
-    while(mKey != "exit"):
-        if(mKey == "yes"):
-            main()
-        elif(mKey == "no"):
-            break
-        mKey = getKey()
-        gameClock.tick(FPS)
-    sys.exit(0)
-
-def drawScore(score):
-    score_numb = score_numb_font.render(str(score),1,pygame.Color("red"))
-    screen.blit(score_msg, (SCREEN_WIDTH - score_msg_size[0]-60,10))
-    screen.blit(score_numb,(SCREEN_WIDTH - 45,14))
-
-def drawGameTime(gameTime):
-    game_time = score_font.render("Time:" , 1, pygame.Color("white"))
-    game_time_numb = score_numb_font.render(str(gameTime/1000),1,pygame.Color("white"))
-    screen.blit(game_time,(30,10))
-    screen.blit(game_time_numb,(105,14))
-
-def exitScreen():
-    pass
-
-def respawnApple(apples , index , sx , sy):
-    radius = math.sqrt((SCREEN_WIDTH/2*SCREEN_WIDTH/2 + SCREEN_HEIGHT/2*SCREEN_HEIGHT/2))/2
-    angle = 999
-    while(angle > radius):
-        angle = random.uniform(0,800)*math.pi*2
-        x = SCREEN_WIDTH/2 + radius * math.cos(angle)
-        y = SCREEN_HEIGHT/2 + radius * math.sin(angle)
-        if(x == sx and y == sy):
-            continue
-    newApple = Apple(x , y ,1)
-    apples[index] = newApple
-
-def respawnApples(apples , quantity , sx ,sy):
-    counter = 0
-    del apples[:]
-    radius = math.sqrt((SCREEN_WIDTH/2*SCREEN_WIDTH/2 + SCREEN_HEIGHT/2*SCREEN_HEIGHT/2))/2
-    angle = 999
-    while(counter < quantity):
-        while(angle > radius):
-            angle = random.uniform(0,800) * math.pi*2
-            x = SCREEN_WIDTH/2 + radius * math.cos(angle)
-            y = SCREEN_HEIGHT/2 + radius * math.sin(angle)
-            if((x-APPLE_SIZE == sx or x+APPLE_SIZE == sx) and (y-APPLE_SIZE == sy or y+APPLE_SIZE == sy) 
-                    or radius - angle <= 10): 
-                    continue
-        apples.append(Apple(x,y,1))
-        angle = 999
-        counter +=1
-
-
-def main():
-    score = 0
-
-
-    #initialisation of snake
-
-    mySnake = snake(SCREEN_WIDTH/2,SCREEN_HEIGHT/2)
-    mySnake.setDirection(KEY["UP"])
-    mySnake.move()
-    start_segments = 3   # initially we will be having 3 segment long snake
-    while(start_segments > 0):
-        mySnake.grow()
-        mySnake.move()
-        start_segments -=1
-
-
-    # food
-    max_apples = 1  # 1 apple when snake eats 
-    eaten_apple = False   # as snake will eat food apple will be disappear
-    apples = [Apple(random.randint(60,SCREEN_WIDTH), random.randint(60,SCREEN_HEIGHT),1)]
-    respawnApples(apples,max_apples , mySnake.x , mySnake.y)
-
-    startTime = pygame.time.get_ticks()
-    endgame = 0
-
-    while(endgame != 1):
-        gameClock.tick(FPS)
-
-        # input
-        keyPress = getKey()
-        if keyPress == "exit":
-            endgame = 1
-
-        # to check collision
-        checkLimits(mySnake)
-        if(mySnake.checkCrashing() == True):
-            endGame()
-
-        for myApple in apples:
-            if(myApple.state == 1):
-                if(checkCollision(mySnake.getHead(),SNAKE_SIZE,myApple,APPLE_SIZE)==True):
-                    mySnake.grow()
-                    myApple.state = 0
-                    score += 10
-                    eaten_apple = True
-
-        # update position
-        if(keyPress):
-            mySnake.setDirection(keyPress)
-        mySnake.move()
-
-        # respawning food 
-        if(eaten_apple == True):
-            eaten_apple = False
-            respawnApple(apples , 0 , mySnake.getHead().x , mySnake.getHead().y)
-
-        #drawing
-        screen.fill(background_color)
-        for myApple in apples:
-            if(myApple.state == 1):
-                myApple.draw(screen)
-        
-        mySnake.draw(screen)
-        drawScore(score)
-        gameTime = pygame.time.get_ticks() - startTime
-        drawGameTime(gameTime)
-
+    def draw(self):
+        self.parent_screen.blit(self.image,((self.x,self.y)))
         pygame.display.flip()
-        pygame.display.update()
+      
+    def move(self):
+        self.x=random.randint(0,24)*SIZE
+        self.y=random.randint(0,19)*SIZE
+          
+     
+            
+class Snake:
+    def __init__(self,parent_screen,length):
+        self.parent_screen=parent_screen
+        self.block=pygame.image.load("block.jpg").convert()
+        self.length=length
+        self.x=[40]*length
+        self.y=[40]*length
+        self.direction='down'
+        
+    def draw(self):
+        for i in range(self.length):
+            self.parent_screen.blit(self.block,(self.x[i],self.y[i]))
+        pygame.display.flip()
+     
+    def move_left(self):
+        self.direction='left'
+    def move_right(self):
+        self.direction='right'
+    def move_up(self):
+        self.direction='up'
+    def move_down(self):
+        self.direction='down'   
+        
+    def walk(self):
+        for i in range(self.length-1,0,-1):
+            self.x[i]=self.x[i-1]
+            self.y[i]=self.y[i-1]
+            
+        if self.direction=='left':
+            self.x[0]-=SIZE
+        if self.direction=='right':
+            self.x[0]+=SIZE
+        if self.direction=='up':
+            self.y[0]-=SIZE 
+        if self.direction=='down':
+            self.y[0]+=SIZE
+            
+        self.draw()  
+        
+    def increase_length(self):
+        self.length+=1
+        self.x.append(-1)
+        self.y.append(-1)                                     
 
-main()
+class Game:
+    def __init__(self):
+        pygame.init()
+        self.surface=pygame.display.set_mode((1000,800))
+        pygame.mixer.init()
+        self.play_background_music()
+        
+        self.snake=Snake(self.surface,1)
+        self.snake.draw()
+        self.apple=Apple(self.surface)
+        self.apple.draw()
+        
+    def play_background_music(self):
+        pygame.mixer.music.load('bg_music_1.mp3')
+        pygame.mixer.music.play(-1,0) 
+      
+    def render_background(self):
+        bg=pygame.image.load('background.jpg')
+        self.surface.blit(bg,(0,0))
+            
+    def play_sound(self,sound_name):
+        if sound_name=="crash":
+            sound=pygame.mixer.Sound("crash.mp3")
+        elif sound_name=="ding":
+            sound=pygame.mixer.Sound("ding.mp3")  
+        pygame.mixer.Sound.play(sound)             
+        
+    def is_collision(self,x1,y1,x2,y2):
+        if x1>=x2 and x1< x2+SIZE:
+            if y1>=y2 and y1< y2+SIZE:
+                return True
+        return False
+    
+    def display_score(self):
+        font=pygame.font.SysFont('arial',30)
+        score=font.render(f"Score: {self.snake.length}",True,(200,200,200))
+        self.surface.blit(score,(850,10))        
+        
+    def play(self):
+        self.render_background()
+        self.snake.walk()
+        self.apple.draw() 
+        self.display_score()
+        pygame.display.flip()
+        
+        if self.snake.x[0]<0 or self.snake.y[0]>800 or self.snake.x[0]>1000 or self.snake.y[0]<0:
+            self.play_sound("crash")
+            raise "Hit Boundary"
+        
+        if self.is_collision(self.snake.x[0],self.snake.y[0],self.apple.x,self.apple.y):
+            self.play_sound("ding")
+            self.snake.increase_length()
+            self.apple.move()  
+            
+        for i in range(2,self.snake.length):
+            if self.is_collision(self.snake.x[0],self.snake.y[0],self.snake.x[i],self.snake.y[i]):
+                self.play_sound("crash")
+                raise "Collosion Occured"    
+           
+    def show_game_over(self):
+        self.render_background()
+        font=pygame.font.SysFont('arial',30)
+        line1=font.render(f"Game is Over! Your score is {self.snake.length}",True,(255,255,255)) 
+        self.surface.blit(line1,(200,300))
+        line2=font.render(f"To play Again press ENTER. To exit press ESCAPE!",True,(255,255,255)) 
+        self.surface.blit(line2,(200,350))
+        pygame.mixer.music.pause()
+        pygame.display.flip()
+         
+    def reset(self):
+        self.snake=Snake(self.surface,1)
+        self.apple=Apple(self.surface)            
+        
+    def run(self):   
+        rng=True
+        pause=False
+        
+        while rng:
+            for evt in pygame.event.get():
+                if evt.type==KEYDOWN:
+                    if evt.key==K_ESCAPE:
+                        rng=False
+                    if evt.key==K_RETURN:
+                        pygame.mixer.music.unpause()
+                        pause=False
+                        
+                    if not pause:
+                            if evt.key==K_LEFT:
+                                self.snake.move_left()
+                            if evt.key==K_RIGHT:
+                                self.snake.move_right()
+                            if evt.key==K_UP:
+                                self.snake.move_up()
+                            if evt.key==K_DOWN:
+                                self.snake.move_down()
+                                  
+                elif evt.type==QUIT:
+                    rng=False 
+            
+            try:
+                if not pause:
+                    self.play()
+                    
+            except Exception as e:
+                self.show_game_over()
+                pause=True
+                self.reset()                
+            
+            time.sleep(.3)                            
 
-
-
+if __name__=="__main__":
+    game=Game()
+    game.run()
